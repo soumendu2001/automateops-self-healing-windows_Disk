@@ -1,0 +1,276 @@
+SOP: Create AWX Workflow Template for Windows Server Auto-Healing
+Objective
+When a Windows Server is detected as down:
+1.	Run Job Template 1 - Device Health Check
+2.	If health check fails, run Job Template 2 - AWS Recovery
+3.	Validate recovery
+4.	Return results to ServiceNow
+
+Architecture
+
+Workflow Template
+│
+├── Job Template 1
+│     Device Health Check
+│
+└── Job Template 2
+      AWS Windows Recovery
+
+Execution Condition:
+
+Health Check Failed
+        ↓
+AWS Recovery Runs
+
+
+Prerequisites
+Before creating workflow ensure:
+Inventory Created
+
+Example:
+AWS-Windows-Inventory
+
+Credentials Added
+•	AWS Credential
+•	Windows Credential
+•	Git Credential (if required)
+
+Project Synced
+Project Name:
+AutoHealing_Project
+
+Repository contains:
+•	device_health_check.yml
+•	aws_recovery.yml
+
+Step 1 Create Job Template 1
+Device Health Check
+Navigate
+Resources
+ → Templates
+ → Add
+ → Add Job Template
+General
+Name:
+JT_Device_Health_Check
+Job Type:
+Run
+Inventory:
+AWS-Windows-Inventory
+Project:
+AutoHealing_Project
+Playbook:
+device_health_check.yml
+Credentials:
+Windows Credential
+
+Variables
+Example: target_host: "{{ target_host }}"
+
+Survey
+Enable:
+1.	Prompt on launch
+2.	Survey Enabled
+
+Create question:
+1.	Question:
+2.	Target Host
+3.	Variable:
+4.	target_host
+5.	Answer Type:
+6.	Text
+7.	Required:
+8.	Yes
+Click Save
+Step 2 Create Job Template 2
+AWS Recovery Job
+Navigate:
+Resources
+ → Templates
+ → Add Job Template
+
+General
+Name:
+JT_AWS_Windows_Recovery
+1.	Job Type:
+2.	Run
+3.	Inventory:
+4.	AWS-Windows-Inventory
+5.	Project:
+6.	AutoHealing_Project
+7.	Playbook:
+8.	aws_recovery.yml
+9.	Credentials:
+10.	AWS Credential
+
+Variables
+instance_id: "{{ instance_id }}"
+region: ap-south-1
+
+Survey
+Enable survey.
+Create question:
+Question:
+1.	EC2 Instance ID
+2.	Variable:
+3.	instance_id
+4.	Required:
+5.	Yes
+
+Step 3 Create Workflow Template
+Navigate:
+Resources
+ → Templates
+ → Add
+ → Add Workflow Template
+Workflow General Settings
+1.	Name:
+2.	WF_Windows_Server_AutoHeal
+3.	Organization:
+4.	Default
+5.	Inventory:
+6.	AWS-Windows-Inventory
+
+Step 4 Open Workflow Visualizer
+Click:
+WF_Windows_Server_AutoHeal
+then
+Visualizer
+Step 5 Add Health Check Node
+Select:
+Start Node
+Click:
+Add Step
+Choose:
+JT_Device_Health_Check
+``
+Save.
+Workflow becomes:
+START
+  
+Device Health Check
+Step 6 Add Recovery Node
+Hover over:
+Device Health Check
+You'll see:
+1.	On Success (+)
+2.	On Failure (+)
+3.	Always (+)
+
+Select:
+On Failure
+Choose:
+JT_AWS_Windows_Recovery
+``
+Save.
+Workflow becomes:
+START
+   │
+   ▼
+Device Health Check
+   │
+   └── Failed
+          │
+          ▼
+AWS Recovery
+
+
+
+
+
+
+
+
+Recommended Flow
+START
+   │
+   ▼
+Device Health Check
+   │
+   ├── Success
+   │      ▼
+   │   END
+   │
+   └── Failure
+           ▼
+     AWS Recovery
+           │
+           ▼
+          END
+
+Step 7 Survey at Workflow Level
+Instead of entering values twice:
+Navigate:
+Workflow Template
+ → Survey
+Enable: Survey Enabled
+Question 1
+1.	Question:
+2.	Target Server
+3.	Variable:
+4.	target_host
+
+Example:
+Windows01
+
+Question 2
+1.	Question:
+2.	Instance ID
+3.	Variable:
+4.	instance_id
+
+Example: i-000d4a68590d9c557
+
+Save.
+Both Job Templates automatically receive the variables.
+Step 8 Enable Prompt Options
+In Workflow Template:
+Prompt on Launch
+Enable:
+1.	Variables
+2.	Inventory
+3.	Credentials
+If required
+Step 9 Test Workflow
+Stop instance manually:
+aws ec2 stop-instances \
+  --instance-ids i-000d4a68590d9c557 \
+  --region ap-south-1
+Launch workflow.
+Provide:
+target_host = windows01
+instance_id = i-000d4a68590d9c557
+
+
+
+Expected result:
+Health Check: Failed
+AWS Recovery: Executed
+Instance Started: Successful
+Workflow: Successful
+Final Production Workflow
+START
+   │
+   ▼
+Device Health Check
+   │
+   ├── Success
+   │      ▼
+   │     END
+   │
+   └── Failure
+           │
+           ▼
+AWS Recovery
+           │
+           ▼
+Device Health Check
+           │
+     ┌─────┴─────┐
+     │           │
+ Success      Failure
+     │           │
+     ▼           ▼
+Update SNOW   Update SNOW
+Resolved      Escalated
+
