@@ -1,79 +1,64 @@
 ---
-- name: Disk Analysis Report
+- name: Fast Disk Analysis Report
   hosts: "{{ target_host }}"
-  gather_facts: true
+  gather_facts: false
 
   vars:
     report_path: "C:\\Temp\\disk_analysis_report.txt"
 
+    excluded_folders:
+      - Windows
+      - "Program Files"
+      - "Program Files (x86)"
+      - ProgramData
+      - "$Recycle.Bin"
+      - "System Volume Information"
+      - PerfLogs
+
   tasks:
 
-    ####################################################################
+    ################################################################
     # Create Report Folder
-    ####################################################################
+    ################################################################
 
     - name: Create report folder
       ansible.windows.win_file:
         path: C:\Temp
         state: directory
 
-    ####################################################################
-    # Top 20 Largest Files
-    ####################################################################
+    ################################################################
+    # Find Largest Candidate Folders
+    ################################################################
 
-    - name: Get top 20 largest files
+    - name: Get top folders excluding OS directories
       ansible.windows.win_shell: |
 
-        try
-        {
-            Get-ChildItem {{ drive_letter | default('C') }}:\ `
-            -Recurse `
-            -File `
-            -ErrorAction SilentlyContinue |
+        $exclude = @(
+            "Windows",
+            "Program Files",
+            "Program Files (x86)",
+            "ProgramData",
+            "$Recycle.Bin",
+            "System Volume Information",
+            "PerfLogs"
+        )
 
-            Sort-Object Length -Descending |
+        $results = @()
 
-            Select-Object `
-            -First 20 `
-            FullName,
-            @{Name='SizeGB';Expression={[math]::Round($_.Length/1GB,2)}} |
+        Get-ChildItem "{{ drive_letter | default('C') }}:\" `
+        -Directory `
+        -ErrorAction SilentlyContinue |
 
-            ConvertTo-Json -Depth 5
+        Where-Object {
+            $_.Name -notin $exclude
+        } |
 
-            exit 0
-        }
-        catch
-        {
-            "[]"
-            exit 0
-        }
+        ForEach-Object {
 
-      register: largest_files
-
-      changed_when: false
-      failed_when: false
-
-    ####################################################################
-    # Top 20 Largest Directories
-    ####################################################################
-
-    - name: Get top 20 largest directories
-      ansible.windows.win_shell: |
-
-        try
-        {
-            $results = @()
-
-            Get-ChildItem {{ drive_letter | default('C') }}:\ `
-            -Directory `
-            -ErrorAction SilentlyContinue |
-
-            ForEach-Object {
-
-                $folder = $_.FullName
+            try {
 
                 $size = (
-                    Get-ChildItem $folder `
+                    Get-ChildItem $_.FullName `
                     -Recurse `
                     -File `
                     -ErrorAction SilentlyContinue |
@@ -81,49 +66,69 @@
                     Measure-Object Length -Sum
                 ).Sum
 
-                [PSCustomObject]@{
-                    Folder = $folder
-                    SizeGB = [math]::Round($size/1GB,2)
+                $results += [PSCustomObject]@{
+                    Folder = $_.FullName
+                    SizeGB = [math\]::Round($size / 1GB,2)
                 }
-            } |
-
-            Sort-Object SizeGB -Descending |
-
-            Select-Object -First 20 |
-
-            ConvertTo-Json -Depth 5
-
-            exit 0
-        }
-        catch
-        {
-            "[]"
-            exit 0
+            }
+            catch {}
         }
 
-      register: largest_dirs
+        $results |
+        Sort-Object SizeGB -Descending |
+        Select-Object -First 10 |
+        ConvertTo-Json -Depth 5
 
-      changed_when: false
+      register: largest_folders
+
       failed_when: false
+      changed_when: false
 
-    ####################################################################
-    # Display Findings
-    ####################################################################
+    ################################################################
+    # Select Largest Folder
+    ################################################################
 
-    - name: Display largest files
+    - name: Select largest folder
+      set_fact:
+        biggest_folder: "{{ (largest_folders.stdout | from_json)[0].Folder }}"
+
+    - name: Display selected folder
       debug:
-        var: largest_files.stdout
+        msg: "Analyzing {{ biggest_folder }}"
 
-    - name: Display largest directories
-      debug:
-        var: largest_dirs.stdout
+    ################################################################
+    # Top Files From Largest Folder Only
+    ################################################################
 
-    ####################################################################
+    - name: Get top 20 files
+      ansible.windows.win_shell: |
+
+        Get-ChildItem "{{ biggest_folder }}" `
+        -File `
+        -Recurse `
+        -ErrorAction SilentlyContinue |
+
+        Sort-Object Length -Descending |
+
+        Select-Object `
+        -First 20 `
+        FullName,
+        @{Name='SizeGB';Expression={[math\]::Round($_.Length/1GB,2)}} |
+
+        ConvertTo-Json -Depth 5
+
+      register: largest_files
+
+      failed_when: false
+      changed_when: false
+
+    ################################################################
     # Generate Report
-    ####################################################################
+    ################################################################
 
-    - name: Generate disk analysis report
+    - name: Generate report
       ansible.windows.win_copy:
+        dest: "{{ report_path }}"
         content: |
 
           ==========================================
@@ -132,39 +137,31 @@
 
           Server : {{ inventory_hostname }}
           Drive  : {{ drive_letter | default('C') }}:
-          Date   : {{ lookup('pipe', 'date -Iseconds') }}
 
           ==========================================
-          TOP 20 LARGEST FILES
+          TOP 10 LARGEST FOLDERS
+          ==========================================
+
+          {{ largest_folders.stdout }}
+
+          ==========================================
+          LARGEST FOLDER
+          ==========================================
+
+          {{ biggest_folder }}
+
+          ==========================================
+          TOP 20 FILES
           ==========================================
 
           {{ largest_files.stdout }}
 
-          ==========================================
-          TOP 20 LARGEST DIRECTORIES
-          ==========================================
+    ################################################################
+    # Fetch Report
+    ################################################################
 
-          {{ largest_dirs.stdout }}
-
-        dest: "{{ report_path }}"
-
-    ####################################################################
-    # Fetch Report to AWX Controller
-    ####################################################################
-
-    - name: Fetch report to controller
+    - name: Fetch report
       fetch:
         src: "{{ report_path }}"
         dest: "/tmp/"
-        flat: true
-
-    ####################################################################
-    # Report Summary
-    ####################################################################
-
-    - name: Display report location
-      debug:
-        msg:
-          - "Disk analysis completed successfully"
-          - "Report saved on server at: {{ report_path }}"
-          - "Report copied to AWX controller: /tmp/disk_analysis_report.txt"
+    
