@@ -161,8 +161,8 @@
     # Fetch Report
     ################################################################
 
-    - name: Fetch report
-      fetch:
-        src: "{{ report_path }}"
-        dest: "C:\Temp\disk_analysis_report.txt"
+    - name: Generate report
+      ansible.windows.win_copy:
+        
+        dest: "{{ report_path}}"
     
