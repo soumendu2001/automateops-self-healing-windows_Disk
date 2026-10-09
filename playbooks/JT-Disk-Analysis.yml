@@ -1,7 +1,7 @@
 ---
 - name: Disk Analysis Report
   hosts: "{{ target_host }}"
-  gather_facts: false
+  gather_facts: true
 
   vars:
     report_path: "C:\\Temp\\disk_analysis_report.txt"
@@ -86,7 +86,7 @@
 
           Server : {{ inventory_hostname }}
           Drive  : {{ drive_letter }}:
-          Date   : {{ ansible_date_time.iso8601 }}
+          Date   : {{ lookup('pipe','date -Iseconds')}}
 
           ==========================================
           TOP 20 LARGEST FILES
