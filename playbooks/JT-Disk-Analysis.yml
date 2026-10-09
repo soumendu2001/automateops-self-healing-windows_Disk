@@ -5,6 +5,7 @@
 
   vars:
     report_path: "C:\\Temp\\disk_analysis_report.txt"
+    target_drive: "{{ drive_letter | default('C') }}"
 
     excluded_folders:
       - Windows
@@ -32,7 +33,7 @@
 
     - name: Get top folders excluding OS directories
       ansible.windows.win_shell: |
-
+        $drive = "{{ target_drive }}"
         $exclude = @(
             "Windows",
             "Program Files",
@@ -45,7 +46,7 @@
 
         $results = @()
 
-        Get-ChildItem "{{ drive_letter | default('C') }}:\" `
+        Get-ChildItem "{{ drive}}:\" `
         -Directory `
         -ErrorAction SilentlyContinue |
 
@@ -68,7 +69,7 @@
 
                 $results += [PSCustomObject]@{
                     Folder = $_.FullName
-                    SizeGB = [math\]::Round($size / 1GB,2)
+                    SizeGB = [math]::Round($size / 1GB,2)
                 }
             }
             catch {}
@@ -113,7 +114,7 @@
         Select-Object `
         -First 20 `
         FullName,
-        @{Name='SizeGB';Expression={[math\]::Round($_.Length/1GB,2)}} |
+        @{Name='SizeGB';Expression={[math]::Round($_.Length/1GB,2)}} |
 
         ConvertTo-Json -Depth 5
 
@@ -163,5 +164,5 @@
     - name: Fetch report
       fetch:
         src: "{{ report_path }}"
-        dest: "/tmp/"
+        dest: "C:\Temp\disk_analysis_report.txt"
     
