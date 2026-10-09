@@ -11,7 +11,7 @@
         $disk = Get-CimInstance Win32_LogicalDisk |
         Where-Object {$_.DeviceID -eq $drive}
 
-        $used_pct = [math]::Round((($disk.Size - $disk.FreeSpace) / $$disk.Size) * 100,2)
+        $used_pct = [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
 
         $result = @{
             drive = $drive
