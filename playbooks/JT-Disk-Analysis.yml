@@ -157,12 +157,3 @@
 
           {{ largest_files.stdout }}
 
-    ################################################################
-    # Fetch Report
-    ################################################################
-
-    - name: Generate report
-      ansible.windows.win_copy:
-        
-        dest: "{{ report_path}}"
-    
