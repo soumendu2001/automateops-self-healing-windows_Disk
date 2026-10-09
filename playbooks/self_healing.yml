@@ -5,13 +5,13 @@
 
   tasks:
 
-    - include_tasks: tasks/disk_health_check.yml
+    - include_tasks: disk_health_check.yml
 
-    - include_tasks: tasks/disk_cleanup.yml
+    - include_tasks: disk_cleanup.yml
       when: disk_used_pct | float > disk_threshold | float
 
-    - include_tasks: tasks/disk_validation.yml
+    - include_tasks: disk_validation.yml
       when: disk_used_pct | float > disk_threshold | float
 
-    - include_tasks: tasks/disk_analysis.yml
+    - include_tasks: disk_analysis.yml
       when: final_disk_pct | float > disk_threshold | float
