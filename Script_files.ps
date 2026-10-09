@@ -1,0 +1,30 @@
+$folder = "C:\Temp\DiskFill"
+
+New-Item -ItemType Directory `
+-Path $folder `
+-Force
+
+$count = 1
+
+while ($true)
+{
+    $disk = Get-CimInstance Win32_LogicalDisk `
+    -Filter "DeviceID='C:'"
+
+    $usedPct =
+    (($disk.Size-$disk.FreeSpace) /
+      $disk.Size)*100
+
+    Write-Host "Current Usage: $([math]::Round($usedPct,2)) %%"
+
+    if($usedPct -ge 92)
+    {
+        break
+    }
+
+    fsutil file createnew `
+    "$folder\TestFile$count.dat" `
+    1073741824
+
+    $count++
+}
