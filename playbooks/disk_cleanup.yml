@@ -4,10 +4,26 @@
   gather_facts: false
 
   tasks:
+    # ################################################################
+    # Clear Temp Directory
+    - name: Clear directories
+      ansible.windows.win_shell: |
+        if (Test-Path "{{ item }}") {
+            Remove-Item "{{ item }}\*" `
+            -Recurse `
+            -Force `
+            -ErrorAction SilentlyContinue
+        }
+      loop:
+        - C:\Temp
+        - C:\DiskFill
+        - C:\inetpub\logs
+      ignore_errors: true
 
-    #################################################################
+    # ################################################################
+    # ################################################################
     # Windows Temp
-    #################################################################
+    # ################################################################
 
     - name: Clear Windows Temp
       ansible.windows.win_shell: |
@@ -60,12 +76,14 @@
 
     - name: Remove update cache
       ansible.windows.win_shell: |
+        if(Test-path "C:\Windows\SoftwareDistribution\Download")
+        {
         Remove-Item `
         "C:\Windows\SoftwareDistribution\Download\*" `
         -Recurse `
         -Force `
         -ErrorAction SilentlyContinue
-
+        }
       ignore_errors: true
 
     - name: Start Windows Update Service
@@ -85,9 +103,10 @@
         {
             Get-ChildItem `
             "C:\inetpub\logs\LogFiles" `
-            -Recurse |
+            -Recurse `
+            - File |
             Where-Object {$_.LastWriteTime -lt (Get-Date).AddDays(-30)} |
-            Remove-Item -Force
+            Remove-Item -Force -ErrorAction SilentyContinue
         }
 
       ignore_errors: true
