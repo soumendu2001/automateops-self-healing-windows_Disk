@@ -4,7 +4,6 @@
   gather_facts: false
 
   tasks:
-
     - name: Create test directory
       ansible.windows.win_file:
         path: C:\DiskFill
@@ -17,4 +16,4 @@
           "C:\DiskFill\dummy$_.dat" `
           1073741824
         }
-  ...
+  
