@@ -28,6 +28,9 @@
 
           $result | ConvertTo-Json -Compress
       register: disk_info
+    - name: Show disk info
+      debug:
+        var: disk_info
 
     - name: Store disk facts
       set_fact:
