@@ -5,7 +5,8 @@
 
   vars:
     safety_free_gb: 1
-    desired_disk_usage : "{{ desired_disk_usage | default(95) }}"
+    desired_disk_usage: "{{ desired_disk_usage | default(95) }}"
+    drive_letter: "{{ drive_letter | default('C') }}"
 
   tasks:
 
@@ -20,31 +21,28 @@
           $disk = Get-CimInstance Win32_LogicalDisk |
           Where-Object {$_.DeviceID -eq "{{ drive_letter }}:"}
 
-          $result = @{
-            SizeGB = [math]::Round($disk.Size / 1GB,2)
-            FreeGB = [math]::Round($disk.FreeSpace / 1GB,2)
-            UsedPct = [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
+          @{
+            size_gb = [math]::Round($disk.Size / 1GB,2)
+            free_gb = [math]::Round($disk.FreeSpace / 1GB,2)
+            used_pct = [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
           }
+      register: disk_result
 
-          $result | ConvertTo-Json -Compress
-      register: disk_info
-    - name: Show disk info
+    - name: Show disk information
       debug:
-        var: disk_info
+        var: disk_result
 
     - name: Store disk facts
       set_fact:
-        disk: 
-           Free GB: "{{ disk_info.free_gb}}"
-           Used PCT: "{{ disk_info.used_pct }}"
+        disk: "{{ disk_result.output[0] }}"
 
     - name: Display current disk status
       debug:
         msg:
           - "Drive: {{ drive_letter }}:"
-          - "Size: {{ disk.SizeGB }} GB"
-          - "Free: {{ disk.FreeGB }} GB"
-          - "Used: {{ disk.UsedPct }}%"
+          - "Size: {{ disk.size_gb }} GB"
+          - "Free: {{ disk.free_gb }} GB"
+          - "Used: {{ disk.used_pct }}%"
 
     - name: Calculate filler size
       set_fact:
@@ -52,41 +50,39 @@
           {{
             (
               (
-                (disk.SizeGB * desired_disk_usage / 100)
+                (disk.size_gb | float * desired_disk_usage | float / 100)
                 -
-                (disk.SizeGB * disk.UsedPct / 100)
+                (disk.size_gb | float * disk.used_pct | float / 100)
               )
             ) | round(0, 'ceil')
           }}
 
     - name: Display calculated filler size
       debug:
-        msg: "Calculated filler size = {{ required_gb }} GB"
+        msg: "Need to create {{ required_gb }} GB"
 
-    - name: Fail if disk already exceeds requested level
+    - name: Fail if disk already exceeds target
       fail:
-        msg: >-
-          Current utilization is already
-          {{ disk.UsedPct }}%.
-          Desired utilization is
-          {{ desired_disk_usage }}%.
+        msg: >
+          Current utilization is {{ disk.used_pct }}%.
+          Desired utilization is {{ desired_disk_usage }}%.
       when:
-        - disk.UsedPct | float >= desired_disk_usage | float
+        - disk.used_pct | float >= desired_disk_usage | float
 
-    - name: Determine maximum safe allocation
+    - name: Calculate maximum safe allocation
       set_fact:
-        max_safe_gb: "{{ (disk.FreeGB | float) - (safety_free_gb | float) }}"
+        max_safe_gb: "{{ (disk.free_gb | float) - (safety_free_gb | float) }}"
 
-    - name: Fail if insufficient free space
+    - name: Verify sufficient free space exists
       fail:
-        msg: >-
+        msg: >
           Unable to reach {{ desired_disk_usage }}%.
-          Required: {{ required_gb }} GB
-          Available safely: {{ max_safe_gb }} GB
+          Required: {{ required_gb }} GB.
+          Safely available: {{ max_safe_gb }} GB.
       when:
         - required_gb | float > max_safe_gb | float
 
-    - name: Remove previous filler file if present
+    - name: Remove previous filler file
       ansible.windows.win_file:
         path: C:\DiskFill\diskfill.dat
         state: absent
@@ -94,22 +90,20 @@
     - name: Create filler file
       ansible.windows.win_powershell:
         script: |
-          $SizeBytes = {{ required_gb }} * 1 GB
+          $SizeBytes = {{ required_gb }} * 1GB
           fsutil file createnew "C:\DiskFill\diskfill.dat" $SizeBytes
 
-    - name: Verify disk utilization
+    - name: Recalculate disk utilization
       ansible.windows.win_powershell:
         script: |
           $disk = Get-CimInstance Win32_LogicalDisk |
           Where-Object {$_.DeviceID -eq "{{ drive_letter }}:"}
 
-          $usedPct = [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
-
-          $usedPct
+          [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
       register: final_usage
 
     - name: Show final utilization
       debug:
         msg:
           - "Target utilization: {{ desired_disk_usage }}%"
-          - "Actual utilization: {{ final_usage.stdout }}%"
+          - "Actual utilization: {{ final_usage.output[0] }}%"
