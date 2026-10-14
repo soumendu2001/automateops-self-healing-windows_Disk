@@ -8,11 +8,20 @@
 
   tasks:
 
-    - name: Show workflow metrics
-      debug:
-        msg:
-          - "Disk Usage Before: {{ disk_usage_before | default('N/A') }}%"
-          - "Disk Usage After: {{ disk_usage_after | default('N/A') }}%"
+    - name: Capture current utilization
+      ansible.windows.win_shell: |
+        $disk = Get-CimInstance Win32_LogicalDisk |
+        Where-Object {$_.DeviceID -eq "{{ drive_letter }}:"}
+
+        $used_pct = [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
+
+    $used_pct
+    register: current_usage
+
+    - name: Store pre-remediation utilization
+      set_stats:
+        data:
+          disk_usage_before_cleanup: "{{ current_usage.stdout }}"
 
     ####################################################################
     # Create Report Folder
