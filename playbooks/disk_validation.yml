@@ -32,10 +32,10 @@
       fail:
         msg: "Disk usage still above threshold"
       when:
-        - validation.stdout.used_pct| float > threshold | float
+        - (validation.stdout | from_json).used_pct| float > threshold | float
 
     - name: Success
       debug:
         msg: >
           Disk utilization reduced to
-          {{ (validation.stdout.used_pct) }}%
+          {{ (validation.stdout | from_json).used_pct) }}%
