@@ -38,4 +38,4 @@
       debug:
         msg: >
           Disk utilization reduced to
-          {{ (validation.stdout | from_json).used_pct) }}%
+          {{ (validation.stdout | from_json).used_pct }}%
