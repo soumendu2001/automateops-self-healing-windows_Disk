@@ -8,6 +8,12 @@
 
   tasks:
 
+    - name: Show workflow metrics
+      debug:
+        msg:
+          - "Disk Usage Before: {{ disk_usage_before | default('N/A') }}%"
+          - "Disk Usage After: {{ disk_usage_after | default('N/A') }}%"
+
     ####################################################################
     # Create Report Folder
     ####################################################################
