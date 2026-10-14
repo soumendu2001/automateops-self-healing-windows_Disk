@@ -2,6 +2,8 @@
 - name: Validate Disk Space
   hosts: "{{ target_host }}"
   gather_facts: false
+  vars:
+    disk_threshold = "{{ disk_threshold | default(85)}}"
 
   tasks:
 
@@ -31,10 +33,10 @@
       fail:
         msg: "Disk usage still above threshold"
       when:
-        - (validation.stdout | from_json).used_pct | float > disk_threshold | float
+        - (validation.stdout.used_pct | float > disk_threshold | float
 
     - name: Success
       debug:
         msg: >
           Disk utilization reduced to
-          {{ (validation.stdout | from_json).used_pct }}%
+          {{ (validation.stdout.used_pct }}%
