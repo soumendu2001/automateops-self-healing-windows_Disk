@@ -34,7 +34,9 @@
 
     - name: Store disk facts
       set_fact:
-        disk: "{{ disk_info.output[0] | from_json }}"
+        disk: 
+           Free GB: "{{ disk_info.free_gb}}"
+           Used PCT: "{{ disk_info.used_pct }}"
 
     - name: Display current disk status
       debug:
