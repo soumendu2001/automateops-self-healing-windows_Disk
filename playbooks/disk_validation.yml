@@ -36,4 +36,4 @@
       debug:
         msg: >
           Disk utilization reduced to
-          {{ (validation.stdout.used_pct }}%
+          {{ (validation.stdout.used_pct) }}%
