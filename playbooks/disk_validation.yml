@@ -34,8 +34,16 @@
       when:
         - (validation.stdout | from_json).used_pct| float > threshold | float
 
+    - name: Capture final utilization
+      set_stats:
+        data:
+          disk_usage_after: "{{ (validation.stdout | from_json).used_pct }}"
+          free_space_after: "{{ (validation.stdout | from_json).free_gb }}"
+
     - name: Success
       debug:
         msg: >
           Disk utilization reduced to
           {{ (validation.stdout | from_json).used_pct }}%
+
+
