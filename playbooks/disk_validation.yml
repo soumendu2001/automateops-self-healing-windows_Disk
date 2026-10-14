@@ -33,7 +33,7 @@
       fail:
         msg: "Disk usage still above threshold"
       when:
-        - (validation.stdout.used_pct | float > disk_threshold | float
+        - (validation.stdout.used_pct) | float > disk_threshold | float
 
     - name: Success
       debug:
