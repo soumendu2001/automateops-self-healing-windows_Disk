@@ -30,7 +30,7 @@
 
     - name: Store disk facts
       set_fact:
-        disk: "{{ disk_info.stdout | from_json }}"
+        disk: "{{ disk_info.output[0] | from_json }}"
 
     - name: Display current disk status
       debug:
@@ -88,9 +88,8 @@
     - name: Create filler file
       ansible.windows.win_powershell:
         script: |
-          fsutil file createnew `
-          "C:\DiskFill\diskfill.dat" `
-          ({{ required_gb }} * 1GB)
+          $SizeBytes = {{ required_gb }} * 1 GB
+          fsutil file createnew "C:\DiskFill\diskfill.dat" $SizeBytes
 
     - name: Verify disk utilization
       ansible.windows.win_powershell:
