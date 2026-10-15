@@ -39,7 +39,7 @@
     - name: Display current disk status
       debug:
         msg:
-          - "Drive: {{ drive_letter }}:"
+          - "Drive: {{ target_drive_letter }}:"
           - "Size: {{ disk.size_gb }} GB"
           - "Free: {{ disk.free_gb }} GB"
           - "Used: {{ disk.used_pct }}%"
@@ -97,7 +97,7 @@
       ansible.windows.win_powershell:
         script: |
           $disk = Get-CimInstance Win32_LogicalDisk |
-          Where-Object {$_.DeviceID -eq "{{ drive_letter }}:"}
+          Where-Object {$_.DeviceID -eq "{{ target_drive_letter }}:"}
 
           [math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100,2)
       register: final_usage
