@@ -5,8 +5,8 @@
 
   vars:
     safety_free_gb: 1
-    desired_disk_usage: "{{ desired_disk_usage | default(95) }}"
-    drive_letter: "{{ drive_letter | default('C') }}"
+    target_disk_usage: "{{ desired_disk_usage | default(95) }}"
+    target_drive_letter: "{{ drive_letter | default('C') }}"
 
   tasks:
 
@@ -19,7 +19,7 @@
       ansible.windows.win_powershell:
         script: |
           $disk = Get-CimInstance Win32_LogicalDisk |
-          Where-Object {$_.DeviceID -eq "{{ drive_letter }}:"}
+          Where-Object {$_.DeviceID -eq "{{ target_drive_letter }}:"}
 
           @{
             size_gb = [math]::Round($disk.Size / 1GB,2)
@@ -50,7 +50,7 @@
           {{
             (
               (
-                (disk.size_gb | float * desired_disk_usage | float / 100)
+                (disk.size_gb | float * target_disk_usage | float / 100)
                 -
                 (disk.size_gb | float * disk.used_pct | float / 100)
               )
@@ -65,9 +65,9 @@
       fail:
         msg: >
           Current utilization is {{ disk.used_pct }}%.
-          Desired utilization is {{ desired_disk_usage }}%.
+          Desired utilization is {{ target_disk_usage }}%.
       when:
-        - disk.used_pct | float >= desired_disk_usage | float
+        - disk.used_pct | float >= target_disk_usage | float
 
     - name: Calculate maximum safe allocation
       set_fact:
@@ -76,7 +76,7 @@
     - name: Verify sufficient free space exists
       fail:
         msg: >
-          Unable to reach {{ desired_disk_usage }}%.
+          Unable to reach {{ target_disk_usage }}%.
           Required: {{ required_gb }} GB.
           Safely available: {{ max_safe_gb }} GB.
       when:
@@ -105,5 +105,5 @@
     - name: Show final utilization
       debug:
         msg:
-          - "Target utilization: {{ desired_disk_usage }}%"
+          - "Target utilization: {{ target_disk_usage }}%"
           - "Actual utilization: {{ final_usage.output[0] }}%"
