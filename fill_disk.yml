@@ -6,6 +6,7 @@
   vars:
     safety_free_gb: 1
     target_disk_usage: "{{ desired_disk_usage | default(95) }}"
+    max_current_usage_allowed: 80
     target_drive_letter: "{{ drive_letter | default('C') }}"
 
   tasks:
@@ -43,6 +44,14 @@
           - "Size: {{ disk.size_gb }} GB"
           - "Free: {{ disk.free_gb }} GB"
           - "Used: {{ disk.used_pct }}%"
+
+    - name: Prevent execution on heavily utilized disks
+      fail:
+        msg: >
+          Current disk utilization is {{ disk.used_pct }}%.
+          Fill Disk is allowed only when utilization is below {{ max_current_usage_allowed }}%.
+      when:
+        - disk.used_pct | float >= max_current_usage_allowed | float
 
     - name: Calculate filler size
       set_fact:
