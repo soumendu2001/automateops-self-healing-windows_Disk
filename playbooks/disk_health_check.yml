@@ -30,6 +30,6 @@
     - name: Set workflow statistics
       set_stats:
         data:
-          disk_info: "{{ disk_info.stdout | from_json }}"
-          disk_usage_before: "{{ (disk_info.stdout | from_json).used_pct }}"
-          free_space_before: "{{ (disk_info.stdout | from_json).free_gb }}"
+          disk_info: "{{ disk_info }}"
+          disk_usage_before: "{{ disk_info.used_pct | float }}"
+          free_space_before: "{{ disk_info.free_gb | float }}"
