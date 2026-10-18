@@ -25,7 +25,7 @@
 
     - name: Display disk info
       debug:
-        var: disk_info
+        var: disk_info.stdout
 
     - name: Set workflow statistics
       set_stats:
